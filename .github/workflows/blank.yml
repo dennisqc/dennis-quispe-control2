@@ -1,0 +1,48 @@
+name: Auto Create Pull Request on MLOPS
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Verificar si el commit contiene 'MLOPS'
+        id: check_commit
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Último mensaje de commit: $COMMIT_MSG"
+          if echo "$COMMIT_MSG" | grep -iq "MLOPS"; then
+            echo "match=true" >> $GITHUB_OUTPUT
+          else
+            echo "match=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Crear Pull Request
+        if: steps.check_commit.outputs.match == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch-suffix: timestamp
+          title: "Automated PR: Updates from commit with MLOPS"
+          body: |
+            ## Automated Pull Request 🤖
+            
+            Este Pull Request fue generado automáticamente por **GitHub Actions** al detectar la palabra clave `MLOPS` en el commit.
+            
+            - **Rama origen:** `${{ github.ref_name }}`
+            - **Commit:** `${{ github.sha }}`
+          base: main  # O 'master' según el nombre de tu rama principal
+          labels: |
+            automated-pr
+            mlops
