@@ -6,12 +6,15 @@ on:
       - master
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
   create-pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
@@ -26,7 +29,6 @@ jobs:
           if echo "$COMMIT_MSG" | grep -iq "MLOPS"; then
             echo "Palabra clave 'MLOPS' encontrada. Creando Pull Request..."
             
-            # Verifica si ya existe un PR abierto de master a main para evitar duplicados
             EXISTING_PR=$(gh pr list --head master --base main --state open --json number -q '.[0].number')
             
             if [ -z "$EXISTING_PR" ]; then
@@ -35,8 +37,7 @@ jobs:
                 --base main \
                 --title "Automated PR: Integration from master to main [MLOPS]" \
                 --body "## Automated Pull Request 🤖
-                Este PR fue creado automáticamente desde la rama **master** hacia **main** al detectar la palabra clave \`MLOPS\` en el último commit." \
-                --label "automated-pr,mlops"
+                Este PR fue creado automáticamente desde la rama **master** hacia **main** al detectar la palabra clave \`MLOPS\` en el último commit."
             else
               echo "Ya existe un PR abierto (#$EXISTING_PR) desde master hacia main."
             fi
