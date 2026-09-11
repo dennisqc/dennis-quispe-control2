@@ -2,47 +2,44 @@ name: Auto Create Pull Request on MLOPS
 
 on:
   push:
-    branches-ignore:
-      - main
+    branches:
       - master
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
-  create-pull-request:
+  create-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Verificar si el commit contiene 'MLOPS'
-        id: check_commit
+      - name: Verificar mensaje de commit y crear PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           echo "Último mensaje de commit: $COMMIT_MSG"
-          if echo "$COMMIT_MSG" | grep -iq "MLOPS"; then
-            echo "match=true" >> $GITHUB_OUTPUT
-          else
-            echo "match=false" >> $GITHUB_OUTPUT
-          fi
 
-      - name: Crear Pull Request
-        if: steps.check_commit.outputs.match == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch-suffix: timestamp
-          title: "Automated PR: Updates from commit with MLOPS"
-          body: |
-            ## Automated Pull Request 🤖
+          if echo "$COMMIT_MSG" | grep -iq "MLOPS"; then
+            echo "Palabra clave 'MLOPS' encontrada. Creando Pull Request..."
             
-            Este Pull Request fue generado automáticamente por **GitHub Actions** al detectar la palabra clave `MLOPS` en el commit.
+            # Verifica si ya existe un PR abierto de master a main para evitar duplicados
+            EXISTING_PR=$(gh pr list --head master --base main --state open --json number -q '.[0].number')
             
-            - **Rama origen:** `${{ github.ref_name }}`
-            - **Commit:** `${{ github.sha }}`
-          base: main  # O 'master' según el nombre de tu rama principal
-          labels: |
-            automated-pr
-            mlops
+            if [ -z "$EXISTING_PR" ]; then
+              gh pr create \
+                --head master \
+                --base main \
+                --title "Automated PR: Integration from master to main [MLOPS]" \
+                --body "## Automated Pull Request 🤖
+                Este PR fue creado automáticamente desde la rama **master** hacia **main** al detectar la palabra clave \`MLOPS\` en el último commit." \
+                --label "automated-pr,mlops"
+            else
+              echo "Ya existe un PR abierto (#$EXISTING_PR) desde master hacia main."
+            fi
+          else
+            echo "El mensaje del commit no contiene 'MLOPS'. No se creará ningún PR."
+          fi
